@@ -1,0 +1,14 @@
+# deployment.yaml
+
+name: daily-etl-pipeline-deployment
+flow_name: daily-etl-pipeline
+work_pool:
+  name: default-agent-pool
+schedule:
+  cron: "30 18 * * *"
+  timezone: "America/New_York"
+tags:
+  - daily
+  - etl
+parameters: {}
+infra_overrides: {}

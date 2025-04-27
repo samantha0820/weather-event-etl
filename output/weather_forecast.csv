@@ -1,0 +1,6 @@
+date,temperature_celsius,feels_like,temp_min,temp_max,humidity,pressure,wind_speed,cloudiness,precipitation_chance,weather_main,weather_description
+2025-04-27,14.8,13.56,13.79,16.31,47.0,1016.0,13.41,75.0,0.0,Clouds,broken clouds
+2025-04-28,12.85,11.5,12.85,12.85,50.0,1026.0,2.94,0.0,0.0,Clear,clear sky
+2025-04-29,14.62,13.57,14.62,14.62,55.0,1025.0,4.74,75.0,0.0,Clouds,broken clouds
+2025-04-30,19.0,18.99,19.0,19.0,78.0,1014.0,4.89,94.0,0.0,Clouds,overcast clouds
+2025-05-01,14.92,13.62,14.92,14.92,44.0,1020.0,2.62,100.0,0.0,Clouds,overcast clouds
