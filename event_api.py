@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 def fetch_events_forecast_daily(api_key, city="New York"):
     url = "https://app.ticketmaster.com/discovery/v2/events.json"
     
+    # List of event classifications to fetch
     classification_list = [
         "Music",
         "Sports",
@@ -13,11 +14,12 @@ def fetch_events_forecast_daily(api_key, city="New York"):
         "Fairs & Festivals"
     ]
     
+    # Start from today's date at midnight UTC
     start_datetime = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
     all_events = []
 
-    # 針對每一種分類分開抓
+    # Fetch events for each classification separately
     for classification in classification_list:
         params = {
             "apikey": api_key,
@@ -26,7 +28,7 @@ def fetch_events_forecast_daily(api_key, city="New York"):
             "classificationName": classification,
             "startDateTime": start_datetime.isoformat() + "Z",
             "sort": "date,asc",
-            "size": 1
+            "size": 30
         }
         
         response = requests.get(url, params=params)
@@ -53,16 +55,16 @@ def fetch_events_forecast_daily(api_key, city="New York"):
         
         all_events.extend(events)
 
-    # --- 合併所有分類活動 ---
+    # Combine all events from different classifications
     events_df = pd.DataFrame(all_events)
 
-    # --- 按天切 ---
+    # Split events by day and limit to 50 per day
     daily_events = []
-    for i in range(5):  # 未來5天
+    for i in range(5):  # Next 5 days
         day = (start_datetime + timedelta(days=i)).date()
         day_events = events_df.query("event_date == @day.isoformat()").head(50)
         daily_events.append(day_events)
 
-    # 最後合併起來
+    # Concatenate daily event dataframes into a final dataframe
     final_df = pd.concat(daily_events, ignore_index=True)
     return final_df.to_dict(orient="records")

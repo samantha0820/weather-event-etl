@@ -4,81 +4,108 @@ import streamlit as st
 import pandas as pd
 
 # --- Load Data ---
+# Read the weather forecast and event forecast data from CSV
 weather_df = pd.read_csv("output/weather_forecast.csv")
 event_df = pd.read_csv("output/events_forecast.csv")
 
 # --- Page Config ---
+# Configure Streamlit page settings: title, icon, and layout
 st.set_page_config(page_title="5-Day Weather & Event Recommendations", page_icon="☀️", layout="wide")
 
+# App title
 st.title("🌟 5-Day Weather & Event Recommendations")
 
 # --- Weather Section ---
+# Display summary metrics for the selected weather date
 st.header("☀️ Weather Summary")
 
+# Convert 'date' column to datetime.date and get the list of unique dates
 weather_df["date"] = pd.to_datetime(weather_df["date"]).dt.date
 available_weather_dates = sorted(weather_df["date"].unique())
 
-selected_weather_date = st.selectbox("Select a Date to View Weather:", available_weather_dates, key="weather_select")
+# Date selector for weather
+selected_weather_date = st.selectbox(
+    "Select a Date to View Weather:",
+    available_weather_dates,
+    key="weather_select"
+)
 
+# Retrieve weather details for the selected date
 selected_weather = weather_df[weather_df["date"] == selected_weather_date].iloc[0]
 
+# Display weather metrics in three columns
 col1, col2, col3 = st.columns(3)
-
 with col1:
     st.metric("Temperature (°C)", f"{selected_weather['temperature_celsius']} (Feels like {selected_weather['feels_like']})")
     st.metric("Humidity (%)", selected_weather['humidity'])
-
 with col2:
     st.metric("Pressure (hPa)", selected_weather['pressure'])
     st.metric("Wind Speed (m/s)", selected_weather['wind_speed'])
-
 with col3:
     st.metric("Cloudiness (%)", selected_weather['cloudiness'])
     st.metric("Chance of Rain", f"{selected_weather['precipitation_chance']*100:.0f}%")
 
+# Display main weather description
 st.write(f"**Weather:** {selected_weather['weather_main']} - {selected_weather['weather_description']}")
 
+# Divider before next section
+st.divider()
+
 # --- Events Section ---
+# Display event cards for the forecast period with filtering options
 st.header("🎉 5-Day Events")
 
-# --- 日期和推薦篩選器 ---
+# Convert 'event_date' to datetime and prepare date options
 event_df["event_date"] = pd.to_datetime(event_df["event_date"])
-available_dates = event_df["event_date"].dt.date.unique()
-available_dates = sorted(available_dates)
+available_dates = sorted(event_df["event_date"].dt.date.unique())
 
+# Date selector for events and recommendation filter
 selected_date = st.selectbox("Select a Date:", available_dates)
-recommendation_filter = st.selectbox("Filter by Recommendation:", ["All", "Recommended (Indoor)", "Recommended (Outdoor)", "Recommended (Indoor OK)", "Not Recommended (Outdoor)"])
+recommendation_filter = st.selectbox(
+    "Filter by Recommendation:",
+    ["All", "Recommended (Indoor)", "Recommended (Outdoor)", "Recommended (Indoor OK)", "Not Recommended (Outdoor)"]
+)
 
-# --- 篩選
+# Filter events by the selected date
 filtered_df = event_df[event_df["event_date"].dt.date == selected_date]
 
+# Apply recommendation filter if not showing all
 if recommendation_filter != "All":
     filtered_df = filtered_df[filtered_df["recommendation"] == recommendation_filter]
 
+# Sort events by time
 filtered_df = filtered_df.sort_values(by="event_time")
 
-# --- 顯示活動卡片
+# Display events as cards
 st.subheader(f"📅 Events on {selected_date.strftime('%B %d, %Y')}")
-
 if filtered_df.empty:
     st.info("No events available for this date.")
 else:
-    for idx, row in filtered_df.iterrows():
+    for _, row in filtered_df.iterrows():
         with st.container():
-            cols = st.columns([1, 2])  # 左：圖片；右：文字
-            with cols[0]:
+            # Two-column layout: image on the left, details on the right
+            image_col, detail_col = st.columns([1, 2])
+            with image_col:
                 if pd.notna(row.get("image_url")):
                     st.image(row["image_url"], width=180)
                 else:
-                    st.write("(No Image)")
-            with cols[1]:
+                    st.write("(No Image Available)")
+            with detail_col:
+                # Event title as a clickable link
                 st.markdown(f"### [{row['event_name']}]({row['event_url']})")
+                # Venue and city information
                 st.write(f"📍 **Venue:** {row['venue']}, {row['city']}")
+                # Event start time
                 st.write(f"🕒 **Time:** {row['event_time']}")
-                price_text = f"${row['price_min']:.2f} - ${row['price_max']:.2f}" if pd.notna(row['price_min']) and pd.notna(row['price_max']) else "N/A"
+                # Price range or N/A
+                price_text = (
+                    f"${row['price_min']:.2f} - ${row['price_max']:.2f}" 
+                    if pd.notna(row['price_min']) and pd.notna(row['price_max']) else "N/A"
+                )
                 st.write(f"💲 **Price:** {price_text}")
+                # Recommendation indicator
                 st.write(f"🏷️ **Recommendation:** {row['recommendation']}")
-
             st.divider()
 
+# Footer caption
 st.caption("\u00a9 Generated by your ETL Pipeline")
