@@ -9,13 +9,13 @@ from load import save_to_csv
 from recommendation import generate_recommendation
 
 @task
-def extract(api_keys):
+def extract(api_keys: dict):
     weather_data = fetch_weather_forecast(api_keys["weather"])
     event_data = fetch_events_forecast_daily(api_keys["event"])
     return weather_data, event_data
 
 @task
-def transform(weather_data, event_data):
+def transform(weather_data: list, event_data: list):
     weather_df = pd.DataFrame(weather_data)
     event_df = pd.DataFrame(event_data)
 
@@ -28,7 +28,7 @@ def transform(weather_data, event_data):
     weather_lookup = weather_df.set_index(weather_df["date"].dt.date)
 
     recommendations = []
-    for idx, row in event_df.iterrows():
+    for _, row in event_df.iterrows():
         event_day = row["event_date"].date()
         if event_day in weather_lookup.index:
             today_weather = weather_lookup.loc[event_day]
@@ -53,18 +53,18 @@ def transform(weather_data, event_data):
     return weather_df.reset_index(drop=True), event_df.reset_index(drop=True)
 
 @task
-def load(weather_df, event_df):
+def load(weather_df: pd.DataFrame, event_df: pd.DataFrame):
     save_to_csv(weather_df, event_df)
 
-@flow(name="Daily ETL Pipeline")
-def etl_pipeline(api_keys):
+@flow(name="etl_pipeline")
+def etl_pipeline(api_keys: dict):
     weather_data, event_data = extract(api_keys)
     weather_df, event_df = transform(weather_data, event_data)
     load(weather_df, event_df)
 
 if __name__ == "__main__":
-    api_keys = {
+    keys = {
         "weather": "e5b41a5fc18b2a3b2cb1e0bdc638ee14",
         "event": "OXzVpMzUq7Dn8JtVnysPuAGNFMNmdYtF"
     }
-    etl_pipeline(api_keys)
+    etl_pipeline(keys)
