@@ -1,12 +1,12 @@
 deployments:
 - name: daily-weather-event-etl
   flow_name: etl_pipeline
+  entrypoint: etl_pipeline.py:etl_pipeline
   schedule:
-    cron: "00 01 * * *" 
+    cron: "0 1 * * *"   # 01:00 AM New York time
     timezone: "America/New_York"
   work_pool:
-    name: sam0820/default
-    work_queue_name: default
+    name: default-agent-pool
   parameters:
     api_keys:
       weather: "e5b41a5fc18b2a3b2cb1e0bdc638ee14"
@@ -15,11 +15,10 @@ deployments:
     - weather
     - events
     - etl
-  infra_overrides: {}
   storage:
     type: github
     config:
       repository: "https://github.com/samantha0820/weather-event-etl.git"
-      reference: "main"                  
-      access_token: null               
-      path: "etl_pipeline.py:etl_pipeline"     
+      reference: "main"
+      access_token: null
+      path: "etl_pipeline.py"
