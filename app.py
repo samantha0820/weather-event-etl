@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 # --- Load Data (with cache) ---
-@st.cache_data(ttl=600)  # cache for 10 min
+@st.cache_data(ttl=3600)  # cache for 1 day
 def load_data():
     weather = pd.read_csv("output/weather_forecast.csv")
     event = pd.read_csv("output/events_forecast.csv")
