@@ -26,10 +26,7 @@ deployments:
   concurrency_limit: null
   description: null
   entrypoint: etl_pipeline.py:etl_pipeline
-  parameters:
-   api_keys:
-    weather: "${WEATHER_API_KEY}"
-    event: "${EVENT_API_KEY}"
+  parameters: {}
   work_pool:
     name: default-agent-pool
     work_queue_name: null
