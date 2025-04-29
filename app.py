@@ -2,11 +2,20 @@
 
 import streamlit as st
 import pandas as pd
+import os 
 
 # --- Load Data ---
 # Read the weather forecast and event forecast data from CSV
 weather_df = pd.read_csv("output/weather_forecast.csv")
 event_df = pd.read_csv("output/events_forecast.csv")
+
+# Show last uodate time
+last_update_time = max(
+    os.path.getmtime("output/weather_forecast.csv"),
+    os.path.getmtime("output/events_forecast.csv")
+)
+
+st.sidebar.write(f"🔄 Data last updated: {pd.to_datetime(last_update_time, unit='s')}")
 
 # --- Page Config ---
 # Configure Streamlit page settings: title, icon, and layout

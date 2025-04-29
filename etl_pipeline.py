@@ -7,6 +7,8 @@ from event_api import fetch_events_forecast_daily
 from transform import validate_weather, validate_events
 from load import save_to_csv
 from recommendation import generate_recommendation
+import subprocess
+
 
 @task
 def extract(api_keys: dict):
@@ -56,11 +58,19 @@ def transform(weather_data: list, event_data: list):
 def load(weather_df: pd.DataFrame, event_df: pd.DataFrame):
     save_to_csv(weather_df, event_df)
 
-@flow(name="etl_pipeline")
-def etl_pipeline(api_keys: dict):
+
+@task
+def git_push():
+    subprocess.run(["git", "add", "output/weather_forecast.csv", "output/events_forecast.csv"], check=True)
+    subprocess.run(["git", "commit", "-m", "Daily ETL update - auto commit"], check=True)
+    subprocess.run(["git", "push"], check=True)
+
+@flow(name="Daily ETL Pipeline")
+def etl_pipeline(api_keys):
     weather_data, event_data = extract(api_keys)
     weather_df, event_df = transform(weather_data, event_data)
     load(weather_df, event_df)
+    git_push()
 
 if __name__ == "__main__":
     keys = {
