@@ -78,18 +78,8 @@ def github_push():
     upload_to_github("output/events_forecast.csv", "samantha0820/weather-event-etl", "output/events_forecast.csv")
 
 @flow(name="Daily ETL Pipeline")
-def etl_pipeline():
-    weather_api_key = os.getenv("WEATHER_API_KEY")
-    event_api_key = os.getenv("EVENT_API_KEY")
-    if not weather_api_key or not event_api_key:
-        raise ValueError("Missing API keys!")
-
-    keys = {
-        "weather": weather_api_key,
-        "event": event_api_key
-    }
-
-    weather_data, event_data = extract(keys)
+def etl_pipeline(api_keys: dict):
+    weather_data, event_data = extract(api_keys)
     weather_df, event_df = transform(weather_data, event_data)
     load(weather_df, event_df)
     github_push()
