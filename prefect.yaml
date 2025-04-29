@@ -32,9 +32,9 @@ deployments:
     work_queue_name: null
     job_variables:
       env:
-        WEATHER_API_KEY: ${WEATHER_API_KEY}
-        EVENT_API_KEY: ${EVENT_API_KEY}
-        GITHUB_TOKEN: ${GITHUB_TOKEN}
+        WEATHER_API_KEY: "e5b41a5fc18b2a3b2cb1e0bdc638ee14"
+        EVENT_API_KEY: "OXzVpMzUq7Dn8JtVnysPuAGNFMNmdYtF"
+        GITHUB_TOKEN: "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"
   schedules:
   - cron: 10 2 * * *
     timezone: America/New_York
