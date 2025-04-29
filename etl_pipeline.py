@@ -32,17 +32,28 @@ def transform(weather_data: list, event_data: list):
     recommendations = []
     for _, row in event_df.iterrows():
         event_day = row["event_date"].date()
+
         if event_day in weather_lookup.index:
             today_weather = weather_lookup.loc[event_day]
-            rec = generate_recommendation(
-                today_weather["temperature_celsius"],
-                today_weather["feels_like"],
-                today_weather["humidity"],
-                today_weather["wind_speed"],
-                today_weather["weather_main"],
-                today_weather["precipitation_chance"],
-                row["venue"]
-            )
+
+            # In case multiple rows per day, pick first valid
+            if isinstance(today_weather, pd.DataFrame):
+                today_weather = today_weather.dropna(subset=["weather_main"]).iloc[0] if not today_weather.dropna(subset=["weather_main"]).empty else None
+            else:
+                today_weather = today_weather if pd.notna(today_weather.get("weather_main", None)) else None
+
+            if today_weather is not None:
+                rec = generate_recommendation(
+                    today_weather["temperature_celsius"],
+                    today_weather["feels_like"],
+                    today_weather["humidity"],
+                    today_weather["wind_speed"],
+                    today_weather["weather_main"],
+                    today_weather["precipitation_chance"],
+                    row["venue"]
+                )
+            else:
+                rec = "No Recommendation"
         else:
             rec = "No Recommendation"
         recommendations.append(rec)
