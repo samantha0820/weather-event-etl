@@ -1,0 +1,9 @@
+streamlit
+pandas
+requests
+pandera
+prefect
+subprocess
+os
+datetime
+zoneinfo
