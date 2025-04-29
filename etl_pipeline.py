@@ -62,12 +62,20 @@ def load(weather_df: pd.DataFrame, event_df: pd.DataFrame):
 @task
 def git_push():
     try:
+        # Add updated files
         subprocess.run(["git", "add", "output/weather_forecast.csv", "output/events_forecast.csv"], check=True)
+
+        # Commit with a standard message
         subprocess.run(["git", "commit", "-m", "Daily ETL update - auto commit"], check=True)
-        subprocess.run(["git", "pull", "--rebase"], check=True)
+
+        # Pull remote updates first (rebase) and auto-resolve trivial conflicts
+        subprocess.run(["git", "pull", "--rebase", "--strategy-option=theirs"], check=True)
+
+        # Push to remote
         subprocess.run(["git", "push"], check=True)
+
     except subprocess.CalledProcessError as e:
-        print(f"Git push failed: {e}. Please check your git status manually.")
+        print(f"Git operation failed: {e}. Maybe nothing to commit or conflict too complex.")
 
 @flow(name="Daily ETL Pipeline")
 def etl_pipeline(api_keys):
