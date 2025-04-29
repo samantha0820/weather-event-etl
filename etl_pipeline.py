@@ -7,7 +7,8 @@ from event_api import fetch_events_forecast_daily
 from transform import validate_weather, validate_events
 from load import save_to_csv
 from recommendation import generate_recommendation
-import subprocess
+from upload_github import upload_to_github
+import os
 
 
 @task
@@ -24,7 +25,10 @@ def transform(weather_data: list, event_data: list):
     weather_df["date"] = pd.to_datetime(weather_df["date"])
     event_df["event_date"] = pd.to_datetime(event_df["event_date"])
 
-    float_columns = ["temperature_celsius", "feels_like", "temp_min", "temp_max", "humidity", "pressure", "wind_speed", "cloudiness", "precipitation_chance"]
+    float_columns = [
+        "temperature_celsius", "feels_like", "temp_min", "temp_max",
+        "humidity", "pressure", "wind_speed", "cloudiness", "precipitation_chance"
+    ]
     weather_df[float_columns] = weather_df[float_columns].astype(float)
 
     weather_lookup = weather_df.set_index(weather_df["date"].dt.date)
@@ -35,8 +39,6 @@ def transform(weather_data: list, event_data: list):
 
         if event_day in weather_lookup.index:
             today_weather = weather_lookup.loc[event_day]
-
-            # In case multiple rows per day, pick first valid
             if isinstance(today_weather, pd.DataFrame):
                 today_weather = today_weather.dropna(subset=["weather_main"]).iloc[0] if not today_weather.dropna(subset=["weather_main"]).empty else None
             else:
@@ -56,6 +58,7 @@ def transform(weather_data: list, event_data: list):
                 rec = "No Recommendation"
         else:
             rec = "No Recommendation"
+
         recommendations.append(rec)
 
     event_df["recommendation"] = recommendations
@@ -69,35 +72,28 @@ def transform(weather_data: list, event_data: list):
 def load(weather_df: pd.DataFrame, event_df: pd.DataFrame):
     save_to_csv(weather_df, event_df)
 
-
 @task
-def git_push():
-    try:
-        # Add updated files
-        subprocess.run(["git", "add", "output/weather_forecast.csv", "output/events_forecast.csv"], check=True)
-
-        # Commit with a standard message
-        subprocess.run(["git", "commit", "-m", "Daily ETL update - auto commit"], check=True)
-
-        # Pull remote updates first (rebase) and auto-resolve trivial conflicts
-        subprocess.run(["git", "pull", "--rebase", "--strategy-option=theirs"], check=True)
-
-        # Push to remote
-        subprocess.run(["git", "push"], check=True)
-
-    except subprocess.CalledProcessError as e:
-        print(f"Git operation failed: {e}. Maybe nothing to commit or conflict too complex.")
+def github_push():
+    upload_to_github("output/weather_forecast.csv", "samantha0820/weather-event-etl", "output/weather_forecast.csv")
+    upload_to_github("output/events_forecast.csv", "samantha0820/weather-event-etl", "output/events_forecast.csv")
 
 @flow(name="Daily ETL Pipeline")
 def etl_pipeline(api_keys):
     weather_data, event_data = extract(api_keys)
     weather_df, event_df = transform(weather_data, event_data)
     load(weather_df, event_df)
-    git_push()
+    github_push() 
 
 if __name__ == "__main__":
+    weather_api_key = os.getenv("WEATHER_API_KEY")
+    event_api_key = os.getenv("EVENT_API_KEY")
+
+    if not weather_api_key or not event_api_key:
+        raise ValueError("Missing API keys! Please set WEATHER_API_KEY and EVENT_API_KEY.")
+
     keys = {
-        "weather": "e5b41a5fc18b2a3b2cb1e0bdc638ee14",
-        "event": "OXzVpMzUq7Dn8JtVnysPuAGNFMNmdYtF"
+        "weather": weather_api_key,
+        "event": event_api_key
     }
+
     etl_pipeline(keys)
