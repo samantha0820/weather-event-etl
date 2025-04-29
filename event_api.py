@@ -34,7 +34,7 @@ def fetch_events_forecast_daily(api_key, city="New York"):
             "classificationName": classification,
             "startDateTime": start_datetime_utc.isoformat().replace("+00:00", "Z"),
             "sort": "date,asc",
-            "size": 10
+            "size": 200
         }
         
         response = requests.get(url, params=params)
