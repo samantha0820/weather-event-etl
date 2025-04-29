@@ -83,17 +83,3 @@ def etl_pipeline(api_keys: dict):
     weather_df, event_df = transform(weather_data, event_data)
     load(weather_df, event_df)
     github_push()
-
-if __name__ == "__main__":
-    weather_api_key = os.getenv("WEATHER_API_KEY")
-    event_api_key = os.getenv("EVENT_API_KEY")
-
-    if not weather_api_key or not event_api_key:
-        raise ValueError("Missing API keys! Please set WEATHER_API_KEY and EVENT_API_KEY.")
-
-    keys = {
-        "weather": weather_api_key,
-        "event": event_api_key
-    }
-
-    etl_pipeline(keys)
