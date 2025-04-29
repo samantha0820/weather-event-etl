@@ -1,7 +1,13 @@
 import requests
 import pandas as pd
+import os
 
 def fetch_weather_forecast(api_key, city="New York"):
+    if api_key.startswith("${") and api_key.endswith("}"):
+        env_var_name = api_key[2:-1]
+        api_key = os.getenv(env_var_name)
+        if not api_key:
+            raise ValueError(f"Missing environment variable: {env_var_name}")
     # Fetch current weather data for today
     current_url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
     current_response = requests.get(current_url)
