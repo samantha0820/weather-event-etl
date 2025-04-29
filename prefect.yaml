@@ -36,7 +36,7 @@ deployments:
         EVENT_API_KEY: ${EVENT_API_KEY}
         GITHUB_TOKEN: ${GITHUB_TOKEN}
   schedules:
-  - cron: 0 1 * * *
+  - cron: 10 2 * * *
     timezone: America/New_York
     day_or: true
     active: true
