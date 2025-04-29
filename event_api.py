@@ -1,6 +1,7 @@
 import requests
 import pandas as pd
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 def fetch_events_forecast_daily(api_key, city="New York"):
     url = "https://app.ticketmaster.com/discovery/v2/events.json"
@@ -14,8 +15,13 @@ def fetch_events_forecast_daily(api_key, city="New York"):
         "Fairs & Festivals"
     ]
     
-    # Start from today's date at midnight UTC
-    start_datetime = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    # Start from today's date
+    ny_now = datetime.now(ZoneInfo("America/New_York"))
+    start_datetime_ny = ny_now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # Use utc time
+    start_datetime_utc = start_datetime_ny.astimezone(ZoneInfo("UTC"))
+
 
     all_events = []
 
@@ -26,9 +32,9 @@ def fetch_events_forecast_daily(api_key, city="New York"):
             "city": city,
             "countryCode": "US",
             "classificationName": classification,
-            "startDateTime": start_datetime.isoformat() + "Z",
+            "startDateTime": start_datetime_utc.isoformat().replace("+00:00", "Z"),
             "sort": "date,asc",
-            "size": 200
+            "size": 10
         }
         
         response = requests.get(url, params=params)
@@ -58,13 +64,15 @@ def fetch_events_forecast_daily(api_key, city="New York"):
     # Combine all events from different classifications
     events_df = pd.DataFrame(all_events)
 
-    # Split events by day and limit to 50 per day
+    today_ny = ny_now.date()
+    valid_days = [(today_ny + timedelta(days=i)) for i in range(5)]
+
+    events_df["event_date"] = pd.to_datetime(events_df["event_date"]).dt.date
+
     daily_events = []
-    for i in range(5):  # Next 5 days
-        day = (start_datetime + timedelta(days=i)).date()
-        day_events = events_df.query("event_date == @day.isoformat()").head(50)
+    for day in valid_days:
+        day_events = events_df.query("event_date == @day").head(50)
         daily_events.append(day_events)
 
-    # Concatenate daily event dataframes into a final dataframe
     final_df = pd.concat(daily_events, ignore_index=True)
     return final_df.to_dict(orient="records")

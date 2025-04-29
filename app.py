@@ -2,47 +2,51 @@
 
 import streamlit as st
 import pandas as pd
-import os 
-
-# --- Load Data ---
-# Read the weather forecast and event forecast data from CSV
-weather_df = pd.read_csv("output/weather_forecast.csv")
-event_df = pd.read_csv("output/events_forecast.csv")
-
-# Show last uodate time
-last_update_time = max(
-    os.path.getmtime("output/weather_forecast.csv"),
-    os.path.getmtime("output/events_forecast.csv")
-)
-
-st.sidebar.write(f"🔄 Data last updated: {pd.to_datetime(last_update_time, unit='s')}")
+import os
 
 # --- Page Config ---
-# Configure Streamlit page settings: title, icon, and layout
-st.set_page_config(page_title="5-Day Weather & Event Recommendations", page_icon="☀️", layout="wide")
+st.set_page_config(
+    page_title="5-Day Weather & Event Recommendations",
+    page_icon="☀️",
+    layout="wide"
+)
 
-# App title
+# --- Load Data (with cache) ---
+@st.cache_data(ttl=600)  # cache for 10 min
+def load_data():
+    weather = pd.read_csv("output/weather_forecast.csv")
+    event = pd.read_csv("output/events_forecast.csv")
+    return weather, event
+
+weather_df, event_df = load_data()
+
+# --- Sidebar: Show Last Update Time ---
+try:
+    last_update_time = max(
+        os.path.getmtime("output/weather_forecast.csv"),
+        os.path.getmtime("output/events_forecast.csv")
+    )
+    st.sidebar.write(f"🔄 Data last updated: {pd.to_datetime(last_update_time, unit='s')}")
+except FileNotFoundError:
+    st.sidebar.write("⚠️ Data not found.")
+
+# --- App Title ---
 st.title("🌟 5-Day Weather & Event Recommendations")
 
 # --- Weather Section ---
-# Display summary metrics for the selected weather date
 st.header("☀️ Weather Summary")
 
-# Convert 'date' column to datetime.date and get the list of unique dates
 weather_df["date"] = pd.to_datetime(weather_df["date"]).dt.date
 available_weather_dates = sorted(weather_df["date"].unique())
 
-# Date selector for weather
 selected_weather_date = st.selectbox(
     "Select a Date to View Weather:",
     available_weather_dates,
     key="weather_select"
 )
 
-# Retrieve weather details for the selected date
 selected_weather = weather_df[weather_df["date"] == selected_weather_date].iloc[0]
 
-# Display weather metrics in three columns
 col1, col2, col3 = st.columns(3)
 with col1:
     st.metric("Temperature (°C)", f"{selected_weather['temperature_celsius']} (Feels like {selected_weather['feels_like']})")
@@ -52,47 +56,38 @@ with col2:
     st.metric("Wind Speed (m/s)", selected_weather['wind_speed'])
 with col3:
     st.metric("Cloudiness (%)", selected_weather['cloudiness'])
-    st.metric("Chance of Rain", f"{selected_weather['precipitation_chance']*100:.0f}%")
+    st.metric("Chance of Rain", f"{selected_weather['precipitation_chance'] * 100:.0f}%")
 
-# Display main weather description
 st.write(f"**Weather:** {selected_weather['weather_main']} - {selected_weather['weather_description']}")
 
-# Divider before next section
 st.divider()
 
 # --- Events Section ---
-# Display event cards for the forecast period with filtering options
 st.header("🎉 5-Day Events")
 
-# Convert 'event_date' to datetime and prepare date options
 event_df["event_date"] = pd.to_datetime(event_df["event_date"])
 available_dates = sorted(event_df["event_date"].dt.date.unique())
 
-# Date selector for events and recommendation filter
-selected_date = st.selectbox("Select a Date:", available_dates)
+selected_date = st.selectbox("Select a Date for Events:", available_dates)
 recommendation_filter = st.selectbox(
     "Filter by Recommendation:",
     ["All", "Recommended (Indoor)", "Recommended (Outdoor)", "Recommended (Indoor OK)", "Not Recommended (Outdoor)"]
 )
 
-# Filter events by the selected date
 filtered_df = event_df[event_df["event_date"].dt.date == selected_date]
 
-# Apply recommendation filter if not showing all
 if recommendation_filter != "All":
     filtered_df = filtered_df[filtered_df["recommendation"] == recommendation_filter]
 
-# Sort events by time
 filtered_df = filtered_df.sort_values(by="event_time")
 
-# Display events as cards
 st.subheader(f"📅 Events on {selected_date.strftime('%B %d, %Y')}")
+
 if filtered_df.empty:
     st.info("No events available for this date.")
 else:
     for _, row in filtered_df.iterrows():
         with st.container():
-            # Two-column layout: image on the left, details on the right
             image_col, detail_col = st.columns([1, 2])
             with image_col:
                 if pd.notna(row.get("image_url")):
@@ -100,21 +95,16 @@ else:
                 else:
                     st.write("(No Image Available)")
             with detail_col:
-                # Event title as a clickable link
                 st.markdown(f"### [{row['event_name']}]({row['event_url']})")
-                # Venue and city information
                 st.write(f"📍 **Venue:** {row['venue']}, {row['city']}")
-                # Event start time
                 st.write(f"🕒 **Time:** {row['event_time']}")
-                # Price range or N/A
                 price_text = (
-                    f"${row['price_min']:.2f} - ${row['price_max']:.2f}" 
+                    f"${row['price_min']:.2f} - ${row['price_max']:.2f}"
                     if pd.notna(row['price_min']) and pd.notna(row['price_max']) else "N/A"
                 )
                 st.write(f"💲 **Price:** {price_text}")
-                # Recommendation indicator
                 st.write(f"🏷️ **Recommendation:** {row['recommendation']}")
             st.divider()
 
-# Footer caption
-st.caption("\u00a9 Generated by your ETL Pipeline")
+# --- Footer ---
+st.caption("\u00a9 Generated by Samantha Wang")
