@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 # --- Load Data (with cache) ---
-@st.cache_data(ttl=3600)  # cache for 1 day
+@st.cache_data(ttl=3600)  # cache for 1 hr
 def load_data():
     weather = pd.read_csv("output/weather_forecast.csv")
     event = pd.read_csv("output/events_forecast.csv")
@@ -31,10 +31,10 @@ except FileNotFoundError:
     st.sidebar.write("⚠️ Data not found.")
 
 # --- App Title ---
-st.title("🌟 5-Day Weather & Event Recommendations")
+st.title("5-Day Weather & Event Recommendations")
 
 # --- Weather Section ---
-st.header("☀️ Weather Summary")
+st.header("☀️Weather Summary")
 
 weather_df["date"] = pd.to_datetime(weather_df["date"]).dt.date
 available_weather_dates = sorted(weather_df["date"].unique())
