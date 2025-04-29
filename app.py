@@ -34,7 +34,7 @@ except FileNotFoundError:
 st.title("5-Day Weather & Event Recommendations")
 
 # --- Weather Section ---
-st.header("☀️Weather Summary")
+st.header("Weather Summary")
 
 weather_df["date"] = pd.to_datetime(weather_df["date"]).dt.date
 available_weather_dates = sorted(weather_df["date"].unique())
@@ -63,7 +63,7 @@ st.write(f"**Weather:** {selected_weather['weather_main']} - {selected_weather['
 st.divider()
 
 # --- Events Section ---
-st.header("🎉 5-Day Events")
+st.header("5-Day Events")
 
 event_df["event_date"] = pd.to_datetime(event_df["event_date"])
 available_dates = sorted(event_df["event_date"].dt.date.unique())
