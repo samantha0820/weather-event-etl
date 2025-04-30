@@ -5,22 +5,19 @@ import requests
 def upload_to_github(file_path, repo, path_in_repo, branch="main"):
     """
     Upload a local file to a GitHub repository using the GitHub API.
-
-    Parameters:
-    - file_path (str): Local path to the file to upload
-    - repo (str): Repository in format "username/repo"
-    - path_in_repo (str): Target path inside the repository (e.g., "output/data.csv")
-    - branch (str): Branch name (default is "main")
     """
 
     github_token = os.getenv("GITHUB_TOKEN")
+
+    print("🔍 GITHUB_TOKEN present?", bool(github_token))  # Debug: has token
+
     if not github_token:
-        raise ValueError("Missing GitHub Token. Please set GITHUB_TOKEN environment variable.")
+        raise ValueError("❌ Missing GitHub Token. Please set GITHUB_TOKEN environment variable.")
 
     api_url = f"https://api.github.com/repos/{repo}/contents/{path_in_repo}"
 
     if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Local file not found: {file_path}")
+        raise FileNotFoundError(f"❌ Local file not found: {file_path}")
 
     with open(file_path, "rb") as f:
         content = base64.b64encode(f.read()).decode()
@@ -30,8 +27,12 @@ def upload_to_github(file_path, repo, path_in_repo, branch="main"):
         "Accept": "application/vnd.github+json"
     }
 
+    print(f"📤 Uploading to: {api_url}")  # Debug: API endpoint
+
     # Check if the file already exists
     get_resp = requests.get(api_url, headers=headers)
+    print(f"🔁 GET response: {get_resp.status_code}")  # Debug: GET response code
+
     if get_resp.status_code == 200:
         sha = get_resp.json().get("sha")
         update = True
@@ -39,6 +40,7 @@ def upload_to_github(file_path, repo, path_in_repo, branch="main"):
         sha = None
         update = False
     else:
+        print(f"❌ Unexpected response: {get_resp.text}")  # Debug: Error body
         raise Exception(f"Failed to check existing file: {get_resp.status_code} {get_resp.text}")
 
     data = {
@@ -50,6 +52,7 @@ def upload_to_github(file_path, repo, path_in_repo, branch="main"):
         data["sha"] = sha
 
     put_resp = requests.put(api_url, headers=headers, json=data)
+    print(f"📥 PUT response: {put_resp.status_code}")  # Debug: PUT response code
 
     if put_resp.status_code in [200, 201]:
         action = "Updated" if update else "Created"
