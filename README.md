@@ -74,8 +74,23 @@ job_variables:
 ```bash
 python etl_pipeline.py
 ```
+## Deployment via Prefect
 
-### 5. Run via Prefect Cloud
+To deploy the pipeline:
+
+1. Register your flow:
+
+```bash
+prefect deployment build etl_pipeline.py:etl_pipeline -n daily-weather-event-pipeline
+```
+
+2. Deploy and schedule:
+
+```bash
+prefect deploy --all
+```
+
+3. Run via Prefect Cloud or manually:
 
 ```bash
 prefect deployment run 'Daily ETL Pipeline/daily-weather-event-pipeline'
@@ -89,10 +104,16 @@ Events are categorized based on daily weather:
 - **Moderate** → Recommended (Indoor OK)
 - **Uncomfortable** → Recommended (Indoor) or Not Recommended
 
-## Screenshots
+## Streamlit Dashboard
 
-- **Weather Dashboard**: ![](image/screenshot_weather.png)
-- **Event Recommendation**: ![](image/screenshot_event.png)
+A Streamlit app is deployed to visualize event recommendations and weather summaries interactively.
+
+**Access the app here:** [https://samantha0820-weather-etl.streamlit.app/](https://samantha0820-weather-etl.streamlit.app/)
+
+The app displays:
+- Top events in New York City for the next 5 days
+- Associated weather conditions
+- Recommendation tag (Outdoor / Indoor / Not Recommended)
 
 ## GitHub Upload
 
