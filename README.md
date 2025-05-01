@@ -1,6 +1,3 @@
-# weather-event-etl
-
-# project-repo
 # Weather & Event ETL Pipeline
 
 This project demonstrates an automated ETL pipeline that fetches weather forecasts and event listings, matches them by date, and generates event recommendations based on weather comfort. Final results are saved as CSV files and automatically uploaded to GitHub.
