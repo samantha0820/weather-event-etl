@@ -3,6 +3,7 @@ from google.api_core.exceptions import NotFound
 import pandas as pd
 import os
 from dotenv import load_dotenv
+import json
 
 # Load environment variables from .env file
 load_dotenv()
@@ -10,17 +11,32 @@ load_dotenv()
 def get_bigquery_client():
     """
     Create and return a BigQuery client.
-    Credentials are loaded from the .env file.
+    Credentials are loaded from the .env file or Prefect deployment.
     """
     # Check if credentials file exists
     creds_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-    if not creds_path or not os.path.exists(creds_path):
+    if not creds_path:
         raise ValueError(
-            f"BigQuery credentials file not found at {creds_path}. "
-            "Please make sure bq_service_account.json exists and GOOGLE_APPLICATION_CREDENTIALS "
-            "is set correctly in your .env file."
+            "GOOGLE_APPLICATION_CREDENTIALS environment variable is not set."
         )
-    return bigquery.Client()
+    
+    # Try to read the credentials file
+    try:
+        with open(creds_path, 'r') as f:
+            credentials = json.load(f)
+            return bigquery.Client.from_service_account_info(credentials)
+    except FileNotFoundError:
+        # If file not found, try to read from Prefect's file deployment
+        try:
+            with open('bq_service_account.json', 'r') as f:
+                credentials = json.load(f)
+                return bigquery.Client.from_service_account_info(credentials)
+        except FileNotFoundError:
+            raise ValueError(
+                f"BigQuery credentials file not found at {creds_path} or bq_service_account.json. "
+                "Please make sure the credentials file exists and GOOGLE_APPLICATION_CREDENTIALS "
+                "is set correctly."
+            )
 
 def get_weather_schema():
     """
