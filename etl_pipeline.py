@@ -7,6 +7,7 @@ from transform import validate_weather, validate_events
 from load import save_to_csv
 from recommendation import generate_recommendation
 from upload_github import upload_to_github
+from bigquery_utils import update_bigquery_data
 
 @task
 def extract():
@@ -58,14 +59,24 @@ def transform(weather_data: list, event_data: list):
 
         recommendations.append(rec)
 
+    # Add recommendation
     event_df["recommendation"] = recommendations
+    
     weather_df = validate_weather(weather_df)
     event_df = validate_events(event_df)
+    
     return weather_df.reset_index(drop=True), event_df.reset_index(drop=True)
 
 @task
 def load(weather_df: pd.DataFrame, event_df: pd.DataFrame):
+    # Save to CSV for Streamlit
     save_to_csv(weather_df, event_df)
+    
+    # Update BigQuery data
+    try:
+        update_bigquery_data(weather_df, event_df)
+    except Exception as e:
+        print(f"Error updating BigQuery: {str(e)}")
 
 @task
 def github_push():

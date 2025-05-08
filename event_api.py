@@ -2,6 +2,24 @@ import requests
 import pandas as pd
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
+import time
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
+
+def create_session_with_retry():
+    """
+    Create a requests session with retry mechanism
+    """
+    session = requests.Session()
+    retry_strategy = Retry(
+        total=3,  # number of retries
+        backoff_factor=1,  # wait 1, 2, 4 seconds between retries
+        status_forcelist=[429, 500, 502, 503, 504]  # HTTP status codes to retry on
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
 
 def fetch_events_forecast_daily(api_key, city="New York"):
     url = "https://app.ticketmaster.com/discovery/v2/events.json"
@@ -22,8 +40,8 @@ def fetch_events_forecast_daily(api_key, city="New York"):
     # Use utc time
     start_datetime_utc = start_datetime_ny.astimezone(ZoneInfo("UTC"))
 
-
     all_events = []
+    session = create_session_with_retry()
 
     # Fetch events for each classification separately
     for classification in classification_list:
@@ -37,29 +55,37 @@ def fetch_events_forecast_daily(api_key, city="New York"):
             "size": 200
         }
         
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        data = response.json()
+        try:
+            # Add delay between requests
+            time.sleep(1)  # Wait 1 second between requests
+            
+            response = session.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
 
-        events = []
-        for event in data.get('_embedded', {}).get('events', []):
-            events.append({
-                "event_name": event["name"],
-                "event_date": event["dates"]["start"]["localDate"],
-                "event_time": event["dates"]["start"].get("localTime", "Unknown"),
-                "venue": event["_embedded"]["venues"][0]["name"],
-                "address": event["_embedded"]["venues"][0].get("address", {}).get("line1", "Unknown"),
-                "city": event["_embedded"]["venues"][0]["city"]["name"],
-                "price_min": event.get("priceRanges", [{}])[0].get("min", None),
-                "price_max": event.get("priceRanges", [{}])[0].get("max", None),
-                "category": event["classifications"][0]["segment"]["name"],
-                "free_or_paid": "Paid" if event.get("priceRanges") else "Free",
-                "status": event["dates"]["status"]["code"],
-                "event_url": event.get("url", None),
-                "image_url": event.get("images", [{}])[0].get("url", None)
-            })
-        
-        all_events.extend(events)
+            events = []
+            for event in data.get('_embedded', {}).get('events', []):
+                events.append({
+                    "event_name": event["name"],
+                    "event_date": event["dates"]["start"]["localDate"],
+                    "event_time": event["dates"]["start"].get("localTime", "Unknown"),
+                    "venue": event["_embedded"]["venues"][0]["name"],
+                    "address": event["_embedded"]["venues"][0].get("address", {}).get("line1", "Unknown"),
+                    "city": event["_embedded"]["venues"][0]["city"]["name"],
+                    "price_min": event.get("priceRanges", [{}])[0].get("min", None),
+                    "price_max": event.get("priceRanges", [{}])[0].get("max", None),
+                    "category": event["classifications"][0]["segment"]["name"],
+                    "free_or_paid": "Paid" if event.get("priceRanges") else "Free",
+                    "status": event["dates"]["status"]["code"],
+                    "event_url": event.get("url", None),
+                    "image_url": event.get("images", [{}])[0].get("url", None)
+                })
+            
+            all_events.extend(events)
+            
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching {classification} events: {str(e)}")
+            continue
 
     # Combine all events from different classifications
     events_df = pd.DataFrame(all_events)

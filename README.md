@@ -1,6 +1,6 @@
 # Weather & Event ETL Pipeline
 
-This project demonstrates an automated ETL pipeline that fetches weather forecasts and event listings, matches them by date, and generates event recommendations based on weather comfort. Final results are saved as CSV files and automatically uploaded to GitHub.
+This project demonstrates an automated ETL pipeline that fetches weather forecasts and event listings, matches them by date, and generates event recommendations based on weather comfort. Final results are saved as CSV files, uploaded to GitHub, and stored in Google BigQuery.
 
 ## Features
 
@@ -10,6 +10,7 @@ This project demonstrates an automated ETL pipeline that fetches weather forecas
 - **Recommendation Logic**: Matches events with weather forecasts and generates textual recommendations.
 - **Automation**: Orchestrated via Prefect Cloud with daily scheduled runs.
 - **Auto GitHub Upload**: Uploads latest CSV outputs directly to a GitHub repository via GitHub API.
+- **BigQuery Integration**: Stores all data in Google BigQuery for analytics and long-term storage.
 
 ## Directory Structure
 
@@ -22,6 +23,8 @@ weather-event-etl/
 ├── transform.py               # Pandera data validation
 ├── load.py                    # Save output CSVs
 ├── upload_github.py          # Upload to GitHub using API
+├── bigquery_utils.py         # BigQuery utilities and schema definitions
+├── init_bigquery.py          # BigQuery table initialization
 ├── output/
 │   ├── events_forecast.csv
 │   └── weather_forecast.csv
@@ -48,6 +51,7 @@ Create a `.env` file or export manually:
 export WEATHER_API_KEY="your_openweather_key"
 export EVENT_API_KEY="your_ticketmaster_key"
 export GITHUB_TOKEN="your_github_pat"
+export GOOGLE_APPLICATION_CREDENTIALS="path/to/your/service-account-key.json"
 ```
 
 ### 3. Prefect Setup
@@ -67,13 +71,75 @@ job_variables:
     WEATHER_API_KEY: ${WEATHER_API_KEY}
     EVENT_API_KEY: ${EVENT_API_KEY}
     GITHUB_TOKEN: ${GITHUB_TOKEN}
+    GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS}
 ```
 
-### 4. Manual Local Run
+### 4. BigQuery Setup
+
+1. Create a Google Cloud project and enable BigQuery API
+2. Create a service account and download the JSON key file
+3. Initialize BigQuery tables:
+```bash
+python init_bigquery.py
+```
+
+## Data Flow
+
+1. **Extract**: Fetches weather and event data from respective APIs
+2. **Transform**: 
+   - Validates data using Pandera schemas
+   - Generates weather-based recommendations for events
+   - Prepares data for both CSV and BigQuery storage
+3. **Load**:
+   - Saves data to CSV files for Streamlit app
+   - Uploads CSV files to GitHub
+   - Stores data in BigQuery tables
+
+## BigQuery Schema
+
+### Weather Forecast Table
+- date (TIMESTAMP)
+- temperature_celsius (FLOAT64)
+- feels_like (FLOAT64)
+- temp_min (FLOAT64)
+- temp_max (FLOAT64)
+- humidity (FLOAT64)
+- pressure (FLOAT64)
+- wind_speed (FLOAT64)
+- cloudiness (FLOAT64)
+- precipitation_chance (FLOAT64)
+- weather_main (STRING)
+- weather_description (STRING)
+
+### Events Forecast Table
+- event_name (STRING)
+- event_date (DATE)
+- event_time (STRING)
+- venue (STRING)
+- address (STRING)
+- city (STRING)
+- price_min (FLOAT64)
+- price_max (FLOAT64)
+- category (STRING)
+- free_or_paid (STRING)
+- status (STRING)
+- event_url (STRING)
+- image_url (STRING)
+- recommendation (STRING)
+
+## Running the Pipeline
 
 ```bash
 python etl_pipeline.py
 ```
+
+This will:
+1. Fetch latest weather and event data
+2. Generate recommendations
+3. Save data to CSV files
+4. Upload to GitHub
+5. Update BigQuery tables
+
 ## Deployment via Prefect
 
 To deploy the pipeline:
