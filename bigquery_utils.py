@@ -11,32 +11,41 @@ load_dotenv()
 def get_bigquery_client():
     """
     Create and return a BigQuery client.
-    Credentials are loaded from the .env file or Prefect deployment.
+    Credentials are loaded from environment variables or files.
     """
-    # Check if credentials file exists
+    # First try to get credentials from environment variable
+    credentials_json = os.getenv("BQ_SERVICE_ACCOUNT_JSON")
+    if credentials_json:
+        try:
+            credentials = json.loads(credentials_json)
+            return bigquery.Client.from_service_account_info(credentials)
+        except (json.JSONDecodeError, TypeError) as e:
+            print(f"Error parsing BQ_SERVICE_ACCOUNT_JSON: {e}")
+    
+    # If environment variable fails, try to read from file
     creds_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     if not creds_path:
-        raise ValueError(
-            "GOOGLE_APPLICATION_CREDENTIALS environment variable is not set."
-        )
+        raise ValueError("GOOGLE_APPLICATION_CREDENTIALS environment variable is not set.")
     
-    # Try to read the credentials file
-    try:
-        with open(creds_path, 'r') as f:
-            credentials = json.load(f)
-            return bigquery.Client.from_service_account_info(credentials)
-    except FileNotFoundError:
-        # If file not found, try to read from Prefect's file deployment
+    # Try different possible paths
+    possible_paths = [
+        creds_path,
+        os.path.join(os.getcwd(), creds_path),
+        os.path.join(os.getcwd(), "keys", creds_path)
+    ]
+    
+    for path in possible_paths:
         try:
-            with open('bq_service_account.json', 'r') as f:
+            with open(path, 'r') as f:
                 credentials = json.load(f)
                 return bigquery.Client.from_service_account_info(credentials)
-        except FileNotFoundError:
-            raise ValueError(
-                f"BigQuery credentials file not found at {creds_path} or bq_service_account.json. "
-                "Please make sure the credentials file exists and GOOGLE_APPLICATION_CREDENTIALS "
-                "is set correctly."
-            )
+        except (FileNotFoundError, json.JSONDecodeError):
+            continue
+    
+    raise ValueError(
+        f"BigQuery credentials not found. Please make sure the credentials file exists "
+        "and GOOGLE_APPLICATION_CREDENTIALS is set correctly."
+    )
 
 def get_weather_schema():
     """
