@@ -1,6 +1,6 @@
 # Weather & Event ETL Pipeline
 
-This project demonstrates an automated ETL pipeline that fetches weather forecasts and event listings, matches them by date, and generates event recommendations based on weather comfort. Final results are saved as CSV files, uploaded to GitHub, and stored in Google BigQuery.
+This project implements an ETL (Extract, Transform, Load) pipeline that collects weather forecasts and event data for New York City, processes them, and stores them in both CSV files and BigQuery tables.
 
 ## Features
 
@@ -35,165 +35,143 @@ weather-event-etl/
 
 ## Setup
 
-### 1. Environment Setup
-
+1. Clone the repository:
 ```bash
-conda create -n mynewenv python=3.12
-conda activate mynewenv
+git clone https://github.com/samantha0820/weather-event-etl.git
+cd weather-event-etl
+```
+
+2. Install dependencies:
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. Environment Variables
-
-Create a `.env` file or export manually:
-
-```bash
-export WEATHER_API_KEY="your_openweather_key"
-export EVENT_API_KEY="your_ticketmaster_key"
-export GITHUB_TOKEN="your_github_pat"
-export GOOGLE_APPLICATION_CREDENTIALS="path/to/your/service-account-key.json"
+3. Set up environment variables:
+Create a `.env` file in the project root with the following variables:
+```env
+WEATHER_API_KEY=your_weather_api_key
+EVENT_API_KEY=your_event_api_key
+GITHUB_TOKEN=your_github_token
+GOOGLE_APPLICATION_CREDENTIALS=keys/bq_service_account.json
+BQ_SERVICE_ACCOUNT_JSON=your_bigquery_service_account_json
 ```
 
-### 3. Prefect Setup
+## BigQuery Setup
 
+1. Create a BigQuery dataset named `weather_events` in your Google Cloud project.
+
+2. The pipeline will automatically create two tables in the dataset:
+   - `weather_forecast`: Stores weather forecast data
+   - `events_forecast`: Stores event data
+
+3. Table Schemas:
+
+   **Weather Forecast Table:**
+   ```sql
+   date TIMESTAMP
+   temperature_celsius FLOAT64
+   feels_like FLOAT64
+   temp_min FLOAT64
+   temp_max FLOAT64
+   humidity FLOAT64
+   pressure FLOAT64
+   wind_speed FLOAT64
+   cloudiness FLOAT64
+   precipitation_chance FLOAT64
+   weather_main STRING
+   weather_description STRING
+   ```
+
+   **Events Forecast Table:**
+   ```sql
+   event_name STRING
+   event_date DATE
+   event_time STRING
+   venue STRING
+   address STRING
+   city STRING
+   price_min FLOAT64
+   price_max FLOAT64
+   category STRING
+   free_or_paid STRING
+   status STRING
+   event_url STRING
+   image_url STRING
+   recommendation STRING
+   ```
+
+## Prefect Setup
+
+1. Install Prefect:
 ```bash
-prefect cloud login
-prefect profile use cloud
+pip install prefect
+```
+
+2. Start the Prefect server:
+```bash
+prefect server start
+```
+
+3. Create a work pool:
+```bash
 prefect work-pool create default-agent-pool --type process
-prefect deploy --all
 ```
 
-Set environment variables for deployments inside `prefect.yaml`:
-
-```yaml
-job_variables:
-  env:
-    WEATHER_API_KEY: ${WEATHER_API_KEY}
-    EVENT_API_KEY: ${EVENT_API_KEY}
-    GITHUB_TOKEN: ${GITHUB_TOKEN}
-    GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS}
-```
-
-### 4. BigQuery Setup
-
-1. Create a Google Cloud project and enable BigQuery API
-2. Create a service account and download the JSON key file
-3. Initialize BigQuery tables:
+4. Start a worker:
 ```bash
-python init_bigquery.py
+prefect worker start -p default-agent-pool
 ```
 
-## Data Flow
-
-1. **Extract**: Fetches weather and event data from respective APIs
-2. **Transform**: 
-   - Validates data using Pandera schemas
-   - Generates weather-based recommendations for events
-   - Prepares data for both CSV and BigQuery storage
-3. **Load**:
-   - Saves data to CSV files for Streamlit app
-   - Uploads CSV files to GitHub
-   - Stores data in BigQuery tables
-
-## BigQuery Schema
-
-### Weather Forecast Table
-- date (TIMESTAMP)
-- temperature_celsius (FLOAT64)
-- feels_like (FLOAT64)
-- temp_min (FLOAT64)
-- temp_max (FLOAT64)
-- humidity (FLOAT64)
-- pressure (FLOAT64)
-- wind_speed (FLOAT64)
-- cloudiness (FLOAT64)
-- precipitation_chance (FLOAT64)
-- weather_main (STRING)
-- weather_description (STRING)
-
-### Events Forecast Table
-- event_name (STRING)
-- event_date (DATE)
-- event_time (STRING)
-- venue (STRING)
-- address (STRING)
-- city (STRING)
-- price_min (FLOAT64)
-- price_max (FLOAT64)
-- category (STRING)
-- free_or_paid (STRING)
-- status (STRING)
-- event_url (STRING)
-- image_url (STRING)
-- recommendation (STRING)
-
-## Running the Pipeline
-
-```bash
-python etl_pipeline.py
-```
-
-This will:
-1. Fetch latest weather and event data
-2. Generate recommendations
-3. Save data to CSV files
-4. Upload to GitHub
-5. Update BigQuery tables
-
-## Deployment via Prefect
-
-To deploy the pipeline:
-
-1. Register your flow:
-
-```bash
-prefect deployment build etl_pipeline.py:etl_pipeline -n daily-weather-event-pipeline
-```
-
-2. Deploy and schedule:
-
+5. Deploy the flow:
 ```bash
 prefect deploy --all
 ```
 
-3. Run via Prefect Cloud or manually:
-
+6. Run the deployment:
 ```bash
 prefect deployment run 'Daily ETL Pipeline/daily-weather-event-pipeline'
 ```
 
-## Recommendation Logic
+## Data Flow
 
-Events are categorized based on daily weather:
+1. **Extract:**
+   - Weather data is fetched from OpenWeatherMap API
+   - Event data is fetched from SeatGeek API
 
-- **Comfortable** → Recommended (Outdoor)
-- **Moderate** → Recommended (Indoor OK)
-- **Uncomfortable** → Recommended (Indoor) or Not Recommended
+2. **Transform:**
+   - Weather data is processed to extract relevant fields
+   - Event data is processed and enriched with weather information
+   - Data is formatted according to BigQuery schema
 
-## Streamlit Dashboard
+3. **Load:**
+   - Data is saved to CSV files in the `output` directory
+   - Data is loaded into BigQuery tables
+   - Tables are updated with new data daily
 
-A Streamlit app is deployed to visualize event recommendations and weather summaries interactively.
+## Scheduling
 
-**Access the app here:** [https://samantha0820-weather-etl.streamlit.app/](https://samantha0820-weather-etl.streamlit.app/)
+The pipeline is scheduled to run daily at 2:10 AM Eastern Time. The schedule is configured in the `prefect.yaml` file.
 
-The app displays:
-- Top events in New York City for the next 5 days
-- Associated weather conditions
-- Recommendation tag (Outdoor / Indoor / Not Recommended)
+## Monitoring
 
-## GitHub Upload
+You can monitor the pipeline runs in the Prefect UI at `http://localhost:4200`.
 
-Files are uploaded to GitHub using the [Contents API](https://docs.github.com/en/rest/repos/contents?apiVersion=2022-11-28):
+## Error Handling
 
-- `output/weather_forecast.csv`
-- `output/events_forecast.csv`
+The pipeline includes error handling for:
+- API request failures
+- Data validation errors
+- BigQuery connection issues
+- File system errors
 
-## Notes
+## Contributing
 
-- All credentials are securely passed as environment variables.
-- You must **not commit** `.env` or `prefect.yaml` with real secrets.
-- `prefect.yaml` is `.gitignore` after deployment.
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
 ## License
 
-MIT License © Samantha Wang
+This project is licensed under the MIT License - see the LICENSE file for details.
