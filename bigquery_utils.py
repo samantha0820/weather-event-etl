@@ -11,12 +11,39 @@ load_dotenv()
 def get_bigquery_client():
     """
     Create and return a BigQuery client.
-    Credentials are loaded from environment variables or files.
+    Credentials are loaded from Streamlit secrets, environment variables, or files.
     """
-    # First try to get credentials from environment variable
+    # Try to get credentials from Streamlit secrets (for Streamlit Cloud)
+    try:
+        import streamlit as st
+        if hasattr(st, 'secrets') and 'BQ_SERVICE_ACCOUNT_JSON' in st.secrets:
+            credentials_json = st.secrets['BQ_SERVICE_ACCOUNT_JSON']
+            if credentials_json:
+                try:
+                    # Handle both string and dict formats
+                    if isinstance(credentials_json, str):
+                        # Replace actual newlines with escaped newlines for JSON parsing
+                        # TOML triple-quoted strings may contain actual newlines
+                        credentials_json = credentials_json.replace('\r\n', '\\n').replace('\n', '\\n').replace('\r', '\\n')
+                        credentials = json.loads(credentials_json)
+                    else:
+                        credentials = credentials_json
+                    return bigquery.Client.from_service_account_info(credentials)
+                except (json.JSONDecodeError, TypeError) as e:
+                    print(f"Error parsing BQ_SERVICE_ACCOUNT_JSON from Streamlit secrets: {e}")
+                    # Try to load from file as fallback
+                    pass
+    except (ImportError, AttributeError):
+        # Not running in Streamlit, continue to other methods
+        pass
+    
+    # Try to get credentials from environment variable
     credentials_json = os.getenv("BQ_SERVICE_ACCOUNT_JSON")
     if credentials_json:
         try:
+            # Replace actual newlines with escaped newlines for JSON parsing
+            if isinstance(credentials_json, str):
+                credentials_json = credentials_json.replace('\r\n', '\\n').replace('\n', '\\n').replace('\r', '\\n')
             credentials = json.loads(credentials_json)
             return bigquery.Client.from_service_account_info(credentials)
         except (json.JSONDecodeError, TypeError) as e:
@@ -24,27 +51,26 @@ def get_bigquery_client():
     
     # If environment variable fails, try to read from file
     creds_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-    if not creds_path:
-        raise ValueError("GOOGLE_APPLICATION_CREDENTIALS environment variable is not set.")
-    
-    # Try different possible paths
-    possible_paths = [
-        creds_path,
-        os.path.join(os.getcwd(), creds_path),
-        os.path.join(os.getcwd(), "keys", creds_path)
-    ]
-    
-    for path in possible_paths:
-        try:
-            with open(path, 'r') as f:
-                credentials = json.load(f)
-                return bigquery.Client.from_service_account_info(credentials)
-        except (FileNotFoundError, json.JSONDecodeError):
-            continue
+    if creds_path:
+        # Try different possible paths
+        possible_paths = [
+            creds_path,
+            os.path.join(os.getcwd(), creds_path),
+            os.path.join(os.getcwd(), "keys", creds_path)
+        ]
+        
+        for path in possible_paths:
+            try:
+                with open(path, 'r') as f:
+                    credentials = json.load(f)
+                    return bigquery.Client.from_service_account_info(credentials)
+            except (FileNotFoundError, json.JSONDecodeError):
+                continue
     
     raise ValueError(
-        f"BigQuery credentials not found. Please make sure the credentials file exists "
-        "and GOOGLE_APPLICATION_CREDENTIALS is set correctly."
+        "BigQuery credentials not found. Please make sure:\n"
+        "1. In Streamlit Cloud: Set BQ_SERVICE_ACCOUNT_JSON in Secrets\n"
+        "2. Locally: Set BQ_SERVICE_ACCOUNT_JSON environment variable or GOOGLE_APPLICATION_CREDENTIALS file path"
     )
 
 def get_weather_schema():

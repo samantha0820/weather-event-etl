@@ -5,3 +5,5 @@ image/
 keys/
 PROJECT_DESCRIPTION.md
 DEPLOYMENT.md
+.streamlit/secrets.toml
+create_secrets_toml.py
