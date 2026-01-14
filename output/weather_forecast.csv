@@ -1,7 +1,6 @@
 date,temperature_celsius,feels_like,temp_min,temp_max,humidity,pressure,wind_speed,cloudiness,precipitation_chance,weather_main,weather_description
-2025-05-13,17.3,17.23,14.95,18.36,82.0,1020.0,0.89,78.0,0.0,Clouds,broken clouds
-2025-05-13,18.4,18.28,18.4,18.93,76.0,1021.0,1.53,93.0,0.0,Clouds,overcast clouds
-2025-05-14,15.64,15.69,15.64,15.64,93.0,1019.0,6.51,100.0,0.0363,Rain,moderate rain
-2025-05-15,16.24,16.45,16.24,16.24,97.0,1013.0,2.29,100.0,0.0,Clouds,overcast clouds
-2025-05-16,19.08,19.26,19.08,19.08,85.0,1008.0,2.38,70.0,0.0,Clouds,broken clouds
-2025-05-17,20.32,20.42,20.32,20.32,77.0,1006.0,3.49,56.0,0.0025,Rain,light rain
+2026-01-14,9.87,8.3,7.98,11.19,54.0,1001.0,3.09,100.0,0.0,Clouds,overcast clouds
+2026-01-15,5.68,2.76,5.68,5.68,90.0,994.0,3.89,100.0,0.0027,Rain,light rain
+2026-01-16,-3.28,-10.28,-3.28,-3.28,43.0,1009.0,7.81,48.0,0.0,Clouds,scattered clouds
+2026-01-17,0.7,-2.76,0.7,0.7,94.0,1016.0,3.12,100.0,0.0,Snow,light snow
+2026-01-18,1.79,-1.78,1.79,1.79,66.0,1021.0,3.56,100.0,0.0,Clouds,overcast clouds
