@@ -3,3 +3,5 @@ prefect.yaml
 .prefect/
 image/
 keys/
+PROJECT_DESCRIPTION.md
+DEPLOYMENT.md
