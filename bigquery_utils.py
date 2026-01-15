@@ -181,7 +181,7 @@ def update_bigquery_data(weather_df: pd.DataFrame, event_df: pd.DataFrame, datas
             client.create_table(table)
             print(f"Created table {dataset_id}.{table_id}")
     
-    # Update data
+    # Update data - delete existing records for the same dates first to avoid duplicates
     for df, table_id, schema in [
         (weather_df, "weather_forecast", get_weather_schema()),
         (event_df, "events_forecast", get_events_schema())
@@ -194,6 +194,92 @@ def update_bigquery_data(weather_df: pd.DataFrame, event_df: pd.DataFrame, datas
         print(f"   Columns: {list(df.columns)}")
         
         try:
+            # Step 1: Filter out duplicates by checking existing data in BigQuery
+            # This avoids DML queries which require billing
+            if table_id == "weather_forecast":
+                # For weather data, filter by date
+                if 'date' in df.columns:
+                    # Get unique dates from new data
+                    if pd.api.types.is_datetime64_any_dtype(df['date']):
+                        new_dates = set(df['date'].dt.date.unique())
+                    else:
+                        new_dates = set(pd.to_datetime(df['date']).dt.date.unique())
+                    
+                    if len(new_dates) > 0:
+                        # Query existing dates from BigQuery
+                        date_list = ', '.join([f"DATE('{d}')" for d in sorted(new_dates)])
+                        existing_query = f"""
+                        SELECT DISTINCT DATE(date) as date
+                        FROM `{dataset_id}.{table_id}`
+                        WHERE DATE(date) IN ({date_list})
+                        """
+                        print(f"   🔍 Checking for existing records for {len(new_dates)} date(s)...")
+                        existing_df = client.query(existing_query).result().to_dataframe()
+                        
+                        if not existing_df.empty:
+                            # Convert existing dates to date objects
+                            if pd.api.types.is_datetime64_any_dtype(existing_df['date']):
+                                existing_dates = set(existing_df['date'].dt.date.unique())
+                            else:
+                                existing_dates = set(pd.to_datetime(existing_df['date']).dt.date.unique())
+                            
+                            # Filter out rows with dates that already exist
+                            if pd.api.types.is_datetime64_any_dtype(df['date']):
+                                df = df[~df['date'].dt.date.isin(existing_dates)]
+                            else:
+                                df = df[~pd.to_datetime(df['date']).dt.date.isin(existing_dates)]
+                            
+                            filtered_count = len(new_dates) - len(existing_dates)
+                            if filtered_count > 0:
+                                print(f"   ✅ Filtered out {len(existing_dates)} duplicate date(s), {filtered_count} new date(s) to insert")
+                            else:
+                                print(f"   ⚠️  All {len(new_dates)} date(s) already exist, skipping insert")
+                                continue
+            
+            elif table_id == "events_forecast":
+                # For events data, filter by event_date
+                if 'event_date' in df.columns:
+                    # Get unique dates from new data
+                    if pd.api.types.is_datetime64_any_dtype(df['event_date']):
+                        new_dates = set(df['event_date'].dt.date.unique())
+                    else:
+                        new_dates = set(pd.to_datetime(df['event_date']).dt.date.unique())
+                    
+                    if len(new_dates) > 0:
+                        # Query existing dates from BigQuery
+                        date_list = ', '.join([f"DATE('{d}')" for d in sorted(new_dates)])
+                        existing_query = f"""
+                        SELECT DISTINCT event_date
+                        FROM `{dataset_id}.{table_id}`
+                        WHERE event_date IN ({date_list})
+                        """
+                        print(f"   🔍 Checking for existing records for {len(new_dates)} date(s)...")
+                        existing_df = client.query(existing_query).result().to_dataframe()
+                        
+                        if not existing_df.empty:
+                            # Convert existing dates to date objects
+                            if pd.api.types.is_datetime64_any_dtype(existing_df['event_date']):
+                                existing_dates = set(existing_df['event_date'].dt.date.unique())
+                            else:
+                                existing_dates = set(pd.to_datetime(existing_df['event_date']).dt.date.unique())
+                            
+                            # Filter out rows with dates that already exist
+                            if pd.api.types.is_datetime64_any_dtype(df['event_date']):
+                                df = df[~df['event_date'].dt.date.isin(existing_dates)]
+                            else:
+                                df = df[~pd.to_datetime(df['event_date']).dt.date.isin(existing_dates)]
+                            
+                            filtered_count = len(new_dates) - len(existing_dates)
+                            if filtered_count > 0:
+                                print(f"   ✅ Filtered out {len(existing_dates)} duplicate date(s), {filtered_count} new date(s) to insert")
+                            else:
+                                print(f"   ⚠️  All {len(new_dates)} date(s) already exist, skipping insert")
+                                continue
+            
+            # Step 2: Insert new data (only non-duplicates)
+            if df.empty:
+                print(f"   ⚠️  No new data to insert after filtering duplicates")
+                continue
             job_config = bigquery.LoadJobConfig(
                 schema=schema,
                 write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
@@ -208,7 +294,7 @@ def update_bigquery_data(weather_df: pd.DataFrame, event_df: pd.DataFrame, datas
             
             # Verify the update
             table = client.get_table(f"{dataset_id}.{table_id}")
-            print(f"✅ Updated {len(df)} rows in {dataset_id}.{table_id}")
+            print(f"✅ Inserted {len(df)} new row(s) into {dataset_id}.{table_id}")
             print(f"   Total rows in table: {table.num_rows}")
             
         except Exception as e:
