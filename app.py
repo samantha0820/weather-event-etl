@@ -18,12 +18,18 @@ data_source = st.sidebar.radio(
     help="Choose where to load data from"
 )
 
+# --- Clear Cache Button (for BigQuery) ---
+if data_source == "BigQuery":
+    if st.sidebar.button("🔄 Refresh Data", help="Clear cache and reload from BigQuery"):
+        st.cache_data.clear()
+        st.rerun()
+
 # --- Load Data from BigQuery ---
-@st.cache_data(ttl=3600)  # cache for 1 hr
+@st.cache_data(ttl=300)  # cache for 5 minutes (shorter cache for fresher data)
 def load_data_from_bigquery():
     """Load data from BigQuery"""
     try:
-        # Query weather data (latest 5 days)
+        # Query weather data (latest 5 days) - use full project ID
         weather_query = """
         SELECT 
             date,
@@ -38,12 +44,12 @@ def load_data_from_bigquery():
             precipitation_chance,
             weather_main,
             weather_description
-        FROM `weather_events.weather_forecast`
+        FROM `ds5500-459222.weather_events.weather_forecast`
         WHERE date >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 5 DAY)
         ORDER BY date ASC
         """
         
-        # Query events data (latest 5 days)
+        # Query events data (latest 5 days) - use full project ID
         events_query = """
         SELECT 
             event_name,
@@ -60,7 +66,7 @@ def load_data_from_bigquery():
             event_url,
             image_url,
             recommendation
-        FROM `weather_events.events_forecast`
+        FROM `ds5500-459222.weather_events.events_forecast`
         WHERE event_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 5 DAY)
         ORDER BY event_date ASC, event_time ASC
         """
@@ -130,6 +136,16 @@ elif data_source_name == "github":
 elif data_source_name == "bigquery":
     st.sidebar.write("Data loaded from BigQuery")
     st.sidebar.write(f"Records: {len(weather_df)} weather, {len(event_df)} events")
+    try:
+        # Get latest date from data
+        if not weather_df.empty:
+            latest_weather_date = weather_df["date"].max()
+            st.sidebar.write(f"Latest weather: {latest_weather_date}")
+        if not event_df.empty:
+            latest_event_date = event_df["event_date"].max()
+            st.sidebar.write(f"Latest events: {latest_event_date}")
+    except Exception:
+        pass
 
 # --- App Title ---
 st.title("5-Day Weather & Event Recommendations")

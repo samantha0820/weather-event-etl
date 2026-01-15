@@ -60,28 +60,28 @@ def fetch_events_forecast_daily(api_key, city="New York"):
             time.sleep(1)  # Wait 1 second between requests
             
             response = session.get(url, params=params)
-            response.raise_for_status()
-            data = response.json()
+        response.raise_for_status()
+        data = response.json()
 
-            events = []
-            for event in data.get('_embedded', {}).get('events', []):
-                events.append({
-                    "event_name": event["name"],
-                    "event_date": event["dates"]["start"]["localDate"],
-                    "event_time": event["dates"]["start"].get("localTime", "Unknown"),
-                    "venue": event["_embedded"]["venues"][0]["name"],
-                    "address": event["_embedded"]["venues"][0].get("address", {}).get("line1", "Unknown"),
-                    "city": event["_embedded"]["venues"][0]["city"]["name"],
-                    "price_min": event.get("priceRanges", [{}])[0].get("min", None),
-                    "price_max": event.get("priceRanges", [{}])[0].get("max", None),
-                    "category": event["classifications"][0]["segment"]["name"],
-                    "free_or_paid": "Paid" if event.get("priceRanges") else "Free",
-                    "status": event["dates"]["status"]["code"],
-                    "event_url": event.get("url", None),
-                    "image_url": event.get("images", [{}])[0].get("url", None)
-                })
-            
-            all_events.extend(events)
+        events = []
+        for event in data.get('_embedded', {}).get('events', []):
+            events.append({
+                "event_name": event["name"],
+                "event_date": event["dates"]["start"]["localDate"],
+                "event_time": event["dates"]["start"].get("localTime", "Unknown"),
+                "venue": event["_embedded"]["venues"][0]["name"],
+                "address": event["_embedded"]["venues"][0].get("address", {}).get("line1", "Unknown"),
+                "city": event["_embedded"]["venues"][0]["city"]["name"],
+                "price_min": event.get("priceRanges", [{}])[0].get("min", None),
+                "price_max": event.get("priceRanges", [{}])[0].get("max", None),
+                "category": event["classifications"][0]["segment"]["name"],
+                "free_or_paid": "Paid" if event.get("priceRanges") else "Free",
+                "status": event["dates"]["status"]["code"],
+                "event_url": event.get("url", None),
+                "image_url": event.get("images", [{}])[0].get("url", None)
+            })
+        
+        all_events.extend(events)
             
         except requests.exceptions.RequestException as e:
             print(f"Error fetching {classification} events: {str(e)}")
