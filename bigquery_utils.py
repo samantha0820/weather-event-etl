@@ -11,33 +11,10 @@ load_dotenv()
 def get_bigquery_client():
     """
     Create and return a BigQuery client.
-    Credentials are loaded from Streamlit secrets, environment variables, or files.
+    Credentials are loaded from environment variables (Prefect), Streamlit secrets, or files.
     """
-    # Try to get credentials from Streamlit secrets (for Streamlit Cloud)
-    try:
-        import streamlit as st
-        if hasattr(st, 'secrets') and 'BQ_SERVICE_ACCOUNT_JSON' in st.secrets:
-            credentials_json = st.secrets['BQ_SERVICE_ACCOUNT_JSON']
-            if credentials_json:
-                try:
-                    # Handle both string and dict formats
-                    if isinstance(credentials_json, str):
-                        # Replace actual newlines with escaped newlines for JSON parsing
-                        # TOML triple-quoted strings may contain actual newlines
-                        credentials_json = credentials_json.replace('\r\n', '\\n').replace('\n', '\\n').replace('\r', '\\n')
-                        credentials = json.loads(credentials_json)
-                    else:
-                        credentials = credentials_json
-                    return bigquery.Client.from_service_account_info(credentials)
-                except (json.JSONDecodeError, TypeError) as e:
-                    print(f"Error parsing BQ_SERVICE_ACCOUNT_JSON from Streamlit secrets: {e}")
-                    # Try to load from file as fallback
-                    pass
-    except (ImportError, AttributeError):
-        # Not running in Streamlit, continue to other methods
-        pass
-    
-    # Try to get credentials from environment variable
+    # Priority 1: Try to get credentials from environment variable (for Prefect/local)
+    # This should be checked FIRST to avoid triggering Streamlit secrets loading
     credentials_json = os.getenv("BQ_SERVICE_ACCOUNT_JSON")
     if credentials_json:
         try:
@@ -62,7 +39,7 @@ def get_bigquery_client():
             print(f"Error parsing BQ_SERVICE_ACCOUNT_JSON: {e}")
             print(f"JSON preview (first 200 chars): {credentials_json[:200] if credentials_json else 'None'}")
     
-    # If environment variable fails, try to read from file
+    # Priority 2: If environment variable fails, try to read from file
     creds_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     if creds_path:
         # Try different possible paths
@@ -80,10 +57,52 @@ def get_bigquery_client():
             except (FileNotFoundError, json.JSONDecodeError):
                 continue
     
+    # Priority 3: Try to get credentials from Streamlit secrets (for Streamlit Cloud only)
+    # Only try this if environment variable and file both failed
+    # Check if we're actually in a Streamlit runtime before importing
+    try:
+        import sys
+        # Only try Streamlit if we're clearly in a Streamlit context
+        is_streamlit_runtime = (
+            'streamlit' in sys.modules or 
+            any('streamlit' in str(arg).lower() for arg in sys.argv) or
+            os.getenv('STREAMLIT_SERVER_PORT') is not None
+        )
+        
+        if is_streamlit_runtime:
+            try:
+                import streamlit as st
+                # Use get() method instead of 'in' operator to avoid triggering secrets.toml loading
+                if hasattr(st, 'secrets'):
+                    try:
+                        credentials_json = st.secrets.get('BQ_SERVICE_ACCOUNT_JSON')
+                        if credentials_json:
+                            try:
+                                # Handle both string and dict formats
+                                if isinstance(credentials_json, str):
+                                    # Replace actual newlines with escaped newlines for JSON parsing
+                                    credentials_json = credentials_json.replace('\r\n', '\\n').replace('\n', '\\n').replace('\r', '\\n')
+                                    credentials = json.loads(credentials_json)
+                                else:
+                                    credentials = credentials_json
+                                return bigquery.Client.from_service_account_info(credentials)
+                            except (json.JSONDecodeError, TypeError) as e:
+                                print(f"Error parsing BQ_SERVICE_ACCOUNT_JSON from Streamlit secrets: {e}")
+                    except Exception:
+                        # Streamlit secrets not available or error accessing, continue
+                        pass
+            except (ImportError, AttributeError):
+                # Not running in Streamlit, continue
+                pass
+    except Exception:
+        # Any error accessing Streamlit, continue to error message
+        pass
+    
     raise ValueError(
         "BigQuery credentials not found. Please make sure:\n"
-        "1. In Streamlit Cloud: Set BQ_SERVICE_ACCOUNT_JSON in Secrets\n"
-        "2. Locally: Set BQ_SERVICE_ACCOUNT_JSON environment variable or GOOGLE_APPLICATION_CREDENTIALS file path"
+        "1. In Prefect: Set BQ_SERVICE_ACCOUNT_JSON environment variable in prefect.yaml\n"
+        "2. In Streamlit Cloud: Set BQ_SERVICE_ACCOUNT_JSON in Secrets\n"
+        "3. Locally: Set BQ_SERVICE_ACCOUNT_JSON environment variable or GOOGLE_APPLICATION_CREDENTIALS file path"
     )
 
 def get_weather_schema():
