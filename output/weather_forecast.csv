@@ -1,5 +1,5 @@
 date,temperature_celsius,feels_like,temp_min,temp_max,humidity,pressure,wind_speed,cloudiness,precipitation_chance,weather_main,weather_description
-2026-01-15,1.98,-4.18,0.55,2.97,42.0,998.0,9.26,0.0,0.0,Clear,clear sky
+2026-01-15,1.88,-4.31,0.54,2.97,43.0,998.0,9.26,0.0,0.0,Clear,clear sky
 2026-01-16,-4.38,-11.38,-4.38,-4.38,40.0,1009.0,8.01,14.0,0.0,Clouds,few clouds
 2026-01-17,0.65,-1.64,0.65,0.65,92.0,1016.0,1.95,100.0,0.0,Snow,snow
 2026-01-18,0.72,-3.38,0.72,0.72,70.0,1020.0,3.97,100.0,0.0,Clouds,overcast clouds
