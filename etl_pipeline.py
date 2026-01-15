@@ -74,9 +74,18 @@ def load(weather_df: pd.DataFrame, event_df: pd.DataFrame):
     
     # Update BigQuery data
     try:
+        print(f"Starting BigQuery update...")
+        print(f"Weather data: {len(weather_df)} rows")
+        print(f"Event data: {len(event_df)} rows")
         update_bigquery_data(weather_df, event_df)
+        print("✅ BigQuery update completed successfully")
     except Exception as e:
-        print(f"Error updating BigQuery: {str(e)}")
+        error_msg = f"❌ Error updating BigQuery: {str(e)}"
+        print(error_msg)
+        import traceback
+        traceback.print_exc()
+        # Re-raise the exception so Prefect marks the task as failed
+        raise Exception(error_msg) from e
 
 @task
 def github_push():

@@ -167,18 +167,37 @@ def update_bigquery_data(weather_df: pd.DataFrame, event_df: pd.DataFrame, datas
         (weather_df, "weather_forecast", get_weather_schema()),
         (event_df, "events_forecast", get_events_schema())
     ]:
-        job_config = bigquery.LoadJobConfig(
-            schema=schema,
-            write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
-        )
+        if df.empty:
+            print(f"⚠️  {table_id} DataFrame is empty, skipping update")
+            continue
+            
+        print(f"📊 Updating {table_id} with {len(df)} rows...")
+        print(f"   Columns: {list(df.columns)}")
         
-        job = client.load_table_from_dataframe(
-            df, 
-            f"{dataset_id}.{table_id}", 
-            job_config=job_config
-        )
-        job.result()  # Wait for the job to complete
-        print(f"Updated {len(df)} rows in {dataset_id}.{table_id}")
+        try:
+            job_config = bigquery.LoadJobConfig(
+                schema=schema,
+                write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+            )
+            
+            job = client.load_table_from_dataframe(
+                df, 
+                f"{dataset_id}.{table_id}", 
+                job_config=job_config
+            )
+            job.result()  # Wait for the job to complete
+            
+            # Verify the update
+            table = client.get_table(f"{dataset_id}.{table_id}")
+            print(f"✅ Updated {len(df)} rows in {dataset_id}.{table_id}")
+            print(f"   Total rows in table: {table.num_rows}")
+            
+        except Exception as e:
+            error_msg = f"❌ Error updating {dataset_id}.{table_id}: {str(e)}"
+            print(error_msg)
+            import traceback
+            traceback.print_exc()
+            raise Exception(error_msg) from e
 
 def query_bigquery(query: str):
     """
