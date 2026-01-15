@@ -41,13 +41,26 @@ def get_bigquery_client():
     credentials_json = os.getenv("BQ_SERVICE_ACCOUNT_JSON")
     if credentials_json:
         try:
-            # Replace actual newlines with escaped newlines for JSON parsing
-            if isinstance(credentials_json, str):
-                credentials_json = credentials_json.replace('\r\n', '\\n').replace('\n', '\\n').replace('\r', '\\n')
-            credentials = json.loads(credentials_json)
-            return bigquery.Client.from_service_account_info(credentials)
+            # Try parsing directly first
+            try:
+                credentials = json.loads(credentials_json)
+                return bigquery.Client.from_service_account_info(credentials)
+            except json.JSONDecodeError:
+                # If direct parsing fails, the \n might be literal (two chars) from YAML
+                # Convert literal \n (backslash + n) to escaped \\n (backslash + backslash + n)
+                # This is needed when YAML stores \n as two characters in env var
+                if isinstance(credentials_json, str):
+                    # Replace literal \n with escaped \\n for JSON parsing
+                    credentials_json = credentials_json.replace('\\n', '\\\\n')
+                    # Also handle any actual newline characters
+                    credentials_json = credentials_json.replace('\r\n', '\\n').replace('\n', '\\n').replace('\r', '\\n')
+                
+                # Try parsing again after conversion
+                credentials = json.loads(credentials_json)
+                return bigquery.Client.from_service_account_info(credentials)
         except (json.JSONDecodeError, TypeError) as e:
             print(f"Error parsing BQ_SERVICE_ACCOUNT_JSON: {e}")
+            print(f"JSON preview (first 200 chars): {credentials_json[:200] if credentials_json else 'None'}")
     
     # If environment variable fails, try to read from file
     creds_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
